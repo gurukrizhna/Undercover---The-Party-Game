@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Undercover - The Party Game</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --accent: #00d2ff;
+            --accent-glow: rgba(0, 210, 255, 0.4);
+            --text-main: #ffffff;
+            --danger: #ff416c;
+            --success: #00b09b;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none; /* Prevents zooming */
+        }
+
+        /* --- LAYOUT & CONTAINERS --- */
+        .app-container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- TYPOGRAPHY --- */
+        h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 1rem; }
+        p { font-size: 1.1rem; opacity: 0.8; line-height: 1.5; text-align: center; margin-bottom: 2rem; }
+        
+        .tagline { font-size: 1rem; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; font-weight: bold; margin-bottom: 2rem; }
+
+        /* --- CONTROLS --- */
+        .slider-container {
+            width: 100%;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .slider-label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 10px; }
+        
+        input[type=range] {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        /* --- BUTTONS --- */
+        .btn {
+            background: var(--accent);
+            color: #1e3c72;
+            border: none;
+            padding: 18px 30px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            border-radius: 50px;
+            width: 100%;
+            margin-top: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            transition: transform 0.1s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn:active { transform: scale(0.96); }
+        .btn-secondary { background: rgba(255,255,255,0.15); color: white; box-shadow: none; }
+        .btn-danger { background: var(--danger); color: white; box-shadow: 0 4px 15px rgba(255, 65, 108, 0.4); }
+
+        /* --- GAMEPLAY ELEMENTS --- */
+        .card-box {
+            background: white;
+            color: #333;
+            width: 100%;
+            height: 200px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .secret-word {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #1e3c72;
+            text-align: center;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.2s ease;
+            filter: blur(10px);
+        }
+
+        .secret-word.visible { opacity: 1; transform: scale(1); filter: blur(0); }
+
+        .hold-instruction {
+            position: absolute;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        /* --- FOOTER --- */
+        .footer {
+            text-align: center;
+            padding: 15px;
+            font-size: 0.9rem;
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px);
+            width: 100%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+        }
+        
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: bold;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        }
+        
+        .footer a:hover { opacity: 1; text-decoration: underline; }
+
+        /* --- RESULTS LIST --- */
+        .result-list {
+            width: 100%;
+            max-height: 50vh;
+            overflow-y: auto;
+            text-align: left;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .result-item {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+        }
+        .is-imposter { color: var(--danger); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <div id="screen-home" class="screen active">
+            <h1>Undercover</h1>
+            <div class="tagline">Social Deduction Game</div>
+            
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Total Players</span>
+                    <span id="label-players">11</span>
+                </div>
+                <input type="range" id="input-players" min="3" max="20" value="11" oninput="uiUpdateSettings()">
+            </div>
+
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Imposters</span>
+                    <span id="label-imposters">2</span>
+                </div>
+                <input type="range" id="input-imposters" min="1" max="5" value="2" oninput="uiUpdateSettings()">
+            </div>
+
+            <button class="btn" onclick="gameStart()">Start Game</button>
+        </div>
+
+        <div id="screen-pass" class="screen">
+            <h2 id="pass-title">Player 1</h2>
+            <p>Pass the phone to this player. <br>Keep the screen hidden from others!</p>
+            
+            <div class="card-box">
+                <span class="hold-instruction">Tap & Hold to Reveal</span>
+                <div id="word-display" class="secret-word">SECRET</div>
+            </div>
+
+            <button id="btn-reveal" class="btn" 
+                onmousedown="doReveal()" onmouseup="doHide()" onmouseleave="doHide()"
+                ontouchstart="doReveal()" ontouchend="doHide()">
+                Hold to See Word
+            </button>
+
+            <button id="btn-next" class="btn btn-success" style="display:none; background: var(--success);" onclick="gameNextPlayer()">
+                Okay, Next Player
+            </button>
+        </div>
+
+        <div id="screen-discuss" class="screen">
+            <h1>Time to Vote!</h1>
+            <p>Discuss, accuse, and find the Imposters!</p>
+            <div style="font-size: 4rem; margin: 20px 0;">🕵️‍♂️</div>
+            <button class="btn btn-danger" onclick="gameReveal()">Reveal Truth</button>
+        </div>
+
+        <div id="screen-results" class="screen">
+            <h2>The Truth</h2>
+            <div class="result-list" id="result-container">
+                </div>
+            <button class="btn" onclick="uiShowScreen('screen-home')">Play Again</button>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Developer <a href="https://instagram.com/gurukrizhna" target="_blank">@gurukrizhna</a>
+    </div>
+
+    <script>
+        // --- DATASET (EXPANDED) ---
+        const database = [
+            { c: "Facebook", i: "Instagram" }, { c: "Whatsapp", i: "Telegram" }, { c: "Twitter", i: "Threads" },
+            { c: "Apple", i: "Samsung" }, { c: "Laptop", i: "Tablet" }, { c: "Keyboard", i: "Typewriter" },
+            { c: "Coffee", i: "Tea" }, { c: "Pizza", i: "Burger" }, { c: "Ice Cream", i: "Yogurt" },
+            { c: "Beer", i: "Wine" }, { c: "Water", i: "Soda" }, { c: "Bread", i: "Toast" },
+            { c: "Dog", i: "Wolf" }, { c: "Cat", i: "Tiger" }, { c: "Lion", i: "Leopard" },
+            { c: "Shark", i: "Dolphin" }, { c: "Eagle", i: "Owl" }, { c: "Snake", i: "Worm" },
+            { c: "Car", i: "Truck" }, { c: "Bus", i: "Train" }, { c: "Plane", i: "Helicopter" },
+            { c: "Bicycle", i: "Motorcycle" }, { c: "Boat", i: "Ship" },
+            { c: "Sun", i: "Moon" }, { c: "Ocean", i: "Lake" }, { c: "Mountain", i: "Hill" },
+            { c: "Rain", i: "Snow" }, { c: "Fire", i: "Smoke" },
+            { c: "Guitar", i: "Violin" }, { c: "Piano", i: "Organ" }, { c: "Singing", i: "Rapping" },
+            { c: "Harry Potter", i: "Lord of the Rings" }, { c: "Marvel", i: "DC" }, { c: "Batman", i: "Superman" },
+            { c: "Football", i: "Rugby" }, { c: "Tennis", i: "Badminton" }, { c: "Cricket", i: "Baseball" },
+            { c: "Doctor", i: "Nurse" }, { c: "Teacher", i: "Professor" }, { c: "Police", i: "Soldier" },
+            { c: "King", i: "President" }, { c: "Castle", i: "Palace" }, { c: "Prison", i: "Dungeon" },
+            { c: "Pen", i: "Pencil" }, { c: "Book", i: "Magazine" }, { c: "Photo", i: "Painting" },
+            { c: "Love", i: "Like" }, { c: "Happy", i: "Excited" }, { c: "Ghost", i: "Zombie" }
+        ];
+
+        // --- STATE ---
+        let players = []; 
+        let currentIdx = 0;
+        let currentRole = "";
+
+        // --- UI FUNCTIONS ---
+        function uiUpdateSettings() {
+            const p = parseInt(document.getElementById('input-players').value);
+            const i = parseInt(document.getElementById('input-imposters').value);
+            
+            // Logic check: Imposters can't be more than half the players
+            if (i >= p) {
+                document.getElementById('input-imposters').value = p - 1;
+            }
+            
+            document.getElementById('label-players').innerText = document.getElementById('input-players').value;
+            document.getElementById('label-imposters').innerText = document.getElementById('input-imposters').value;
+        }
+
+        function uiShowScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // --- GAME LOGIC ---
+        function gameStart() {
+            const totalP = parseInt(document.getElementById('input-players').value);
+            const totalI = parseInt(document.getElementById('input-imposters').value);
+            
+            // Pick Random Word Pair
+            const pair = database[Math.floor(Math.random() * database.length)];
+            
+            // Build Deck
+            players = [];
+            for (let k=0; k < totalP; k++) {
+                // First 'totalI' players are imposters, rest are civilians
+                let isImposter = k < totalI;
+                players.push({
+                    id: k,
+                    word: isImposter ? pair.i : pair.c,
+                    role: isImposter ? "Imposter" : "Civilian"
+                });
+            }
+
+            // Shuffle Deck
+            players.sort(() => Math.random() - 0.5);
+
+            // Reset Vars
+            currentIdx = 0;
+            uiSetupTurn();
+            uiShowScreen('screen-pass');
+        }
+
+        function uiSetupTurn() {
+            document.getElementById('pass-title').innerText = `Player ${currentIdx + 1}`;
+            const wordEl = document.getElementById('word-display');
+            wordEl.innerText = players[currentIdx].word;
+            wordEl.classList.remove('visible');
+            
+            document.querySelector('.hold-instruction').style.opacity = '1';
+            
+            // Reset Buttons
+            document.getElementById('btn-reveal').style.display = 'block';
+            document.getElementById('btn-next').style.display = 'none';
+        }
+
+        // --- INTERACTION ---
+        function doReveal() {
+            document.getElementById('word-display').classList.add('visible');
+            document.querySelector('.hold-instruction').style.opacity = '0';
+        }
+
+        function doHide() {
+            const wordEl = document.getElementById('word-display');
+            if (!wordEl.classList.contains('visible')) return; // ignore if never revealed
+
+            wordEl.classList.remove('visible');
+            
+            // Switch to Next button immediately after they let go
+            document.getElementById('btn-reveal').style.display = 'none';
+            document.getElementById('btn-next').style.display = 'block';
+        }
+
+        function gameNextPlayer() {
+            currentIdx++;
+            if (currentIdx >= players.length) {
+                uiShowScreen('screen-discuss');
+            } else {
+                uiSetupTurn();
+            }
+        }
+
+        function gameReveal() {
+            const list = document.getElementById('result-container');
+            list.innerHTML = '';
+            
+            players.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `
+                    <span>Player ${index + 1}</span>
+                    <span class="${p.role === 'Imposter' ? 'is-imposter' : ''}">${p.word} (${p.role})</span>
+                `;
+                list.appendChild(div);
+            });
+            
+            uiShowScreen('screen-results');
+        }
+
+        // Init
+        uiUpdateSettings();
+    </script>
+</body>
+</html>
